@@ -51,7 +51,7 @@ def build_presence_notif(trid: Optional[str], ctc_head: User, user_me: User, dia
 				reply += ('0:0',)
 			else:
 				# Most likely scenario this would pop up is in circle presence
-				reply += (encode_capabilities_capabilitiesex(((circle_user_bs.front_data.get('msn_capabilities') or 0) if ciircle_user_bs.front_data.get('msn') is True else MAX_CAPABILITIES), 0),)
+				reply += (encode_capabilities_capabilitiesex(((circle_user_bs.front_data.get('msn_capabilities') or 0) if circle_user_bs.front_data.get('msn') is True else MAX_CAPABILITIES), 0),)
 		else:
 			reply = ('FLN', head.email)
 			if dialect >= 14: reply += (int(NetworkID.WINDOWS_LIVE),)
