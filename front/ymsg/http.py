@@ -9,6 +9,7 @@ import shutil
 import re
 
 from core.backend import Backend, BackendSession
+from core.models import Contact
 import util.misc
 from .ymsg_ctrl import _try_decode_ymsg
 from .misc import YMSGService, yahoo_id_to_uuid, yahoo_id
@@ -44,87 +45,72 @@ def register(app: web.Application) -> None:
 	app.router.add_get('/tmp/file/{file_id}/{filename}', handle_yahoo_filedl)
 
 async def handle_insider_ycontent(req: web.Request) -> web.Response:
-	backend = req.app['backend']
+	backend = req.app['backend'] # type: Backend
 	
-	yab_received = False
-	yab_set = False
 	config_xml = []
 	for query_xml in req.query.keys():
 		# Ignore any `chatroom_##########` requests for now
 		if query_xml in UNUSED_QUERIES or query_xml.startswith('chatroom_'): continue
-		if query_xml in ('ab2','addab2'):
-			(_, bs) = _parse_cookies(req, backend)
-			if bs is not None:
-				user = bs.user
-				detail = user.detail
-				if detail is not None:
-					ab2_tmpl = req.app['jinja_env'].get_template('ymsg:Yinsider/Yinsider.ab2.xml')
-					if query_xml == 'ab2':
-						if yab_received or yab_set: continue
-						tpl = backend.user_service.get_ab_contents(user)
-						if tpl is not None:
-							_, _, _, ab_contacts = tpl
-							ab_ctcs = [ab_contact for ab_contact in ab_contacts.values() if ab_contact.type == 'Regular']
-							records = []
-							
-							for ab_ctc in ab_ctcs:
-								records.append(_gen_yab_record(ab_ctc))
-							config_xml.append(ab2_tmpl.render(epoch = round(time.time()), records = Markup('\n'.join(records))))
-					if query_xml == 'addab2':
-						edit_mode = False
-						email_member = None
-						
-						if yab_set or yab_received: continue
-						if req.query.get('ee') is '1' and req.query.get('ow') is '1':
-							edit_mode = True
-						
-						if edit_mode:
-							if req.query.get('id') is None:
-								continue
-							
-							entry_id = str(req.query['id'])
-							ab_ctc = backend.user_service.ab_get_entry_by_id(entry_id, user)
-						else:
-							yid = req.query.get('yid')
-							if yid is None: continue
-							
-							if '@' in yid:
-								if not yid.endswith('@yahoo.com'):
-									email_member = yid
-								else:
-									email_member = None
-							else:
-								email_member = '{}@yahoo.com'.format(yid)
-							
-							if email_member is None:
-								continue
-							entry_uuid = backend.util_get_uuid_from_email(email_member)
-							if entry_uuid is None:
-								continue
-							
-							ab_ctc = backend.user_service.ab_get_entry_by_email(email_member, 'Regular', user)
-							if ab_ctc is not None:
-								continue
-							
-							ab_ctc = AddressBookContact(
-								'Regular', backend.user_service.gen_ab_entry_id(user), util.misc.gen_uuid(), email_member, '', set(),
-								member_uuid = email_member, is_messenger_user = True,
-							)
-						if req.query.get('pp') is not None:
-							if str(req.query['pp']) not in ('0','1','2'):
-								continue
-						ab_ctc.first_name = req.query.get('fn')
-						ab_ctc.last_name = req.query.get('ln')
-						ab_ctc.nickname = req.query.get('nn')
-						ab_ctc.personal_email = req.query.get('e')
-						ab_ctc.home_phone = req.query.get('hp')
-						ab_ctc.work_phone = req.query.get('wp')
-						ab_ctc.mobile_phone = req.query.get('mb')
-						
-						await backend.user_service.mark_ab_modified_async({ 'contacts': [ab_ctc] }, user)
-						
-						config_xml.append(ab2_tmpl.render(epoch = round(time.time()), records = Markup(_gen_yab_record(ab_ctc))))
-			continue
+		if query_xml in ('ab2', 'addab2'):
+			_, bs = _parse_cookies(req, backend)
+			if bs is None:
+				continue
+			user = bs.user
+			detail = user.detail
+			if detail is None:
+				continue
+			ab2_tmpl = req.app['jinja_env'].get_template('ymsg:Yinsider/Yinsider.ab2.xml')
+			if query_xml == 'ab2':
+				records = [
+					_gen_yab_record(ctc)
+					for ctc in detail.contacts.values()
+					if ctc.type == 'Regular'
+				]
+				config_xml.append(ab2_tmpl.render(epoch = round(time.time()), records = Markup('\n'.join(records))))
+			if query_xml == 'addab2':
+				edit_mode = False
+				email_member = None
+				
+				if req.query.get('ee') == '1' and req.query.get('ow') == '1':
+					edit_mode = True
+				
+				if edit_mode:
+					entry_id = req.query.get('id')
+					if entry_id is None:
+						continue
+					ctc = next((ctc for ctc in detail.contacts.values() if ctc.yahoo_contact_id == entry_id), None)
+					assert ctc is not None
+				else:
+					yid = req.query.get('yid')
+					if yid is None: continue
+					if yid.endswith('@yahoo.com'):
+						continue
+					
+					if '@' not in yid:
+						email_member = '{}@yahoo.com'.format(yid)
+					
+					ctc = next((ctc for ctc in detail.contacts.values() if ctc.email == email_member), None)
+					if ctc is not None:
+						continue
+					
+					# TODO
+					ctc, _ = bs.me_contact_add(
+						type = 'Regular', is_messenger_user = True,
+					)
+				if req.query.get('pp') not in ('0', '1', '2'):
+					continue
+				ctc.info.first_name = req.query.get('fn')
+				ctc.info.last_name = req.query.get('ln')
+				ctc.info.nickname = req.query.get('nn')
+				ctc.info.personal_email = req.query.get('e')
+				ctc.info.home_phone = req.query.get('hp')
+				ctc.info.work_phone = req.query.get('wp')
+				ctc.info.mobile_phone = req.query.get('mb')
+				
+				# TODO: Why was this awaiting for the modification to be flushed?
+				bs._mark_modified(ctc)
+				
+				config_xml.append(ab2_tmpl.render(epoch = round(time.time()), records = Markup(_gen_yab_record(ctc))))
 		tmpl = req.app['jinja_env'].get_template('ymsg:Yinsider/Yinsider.' + query_xml + '.xml')
 		config_xml.append(tmpl.render())
 	
@@ -144,7 +130,9 @@ UNUSED_QUERIES = {
 	'ee', 'ow', 'id',
 }
 
-def _gen_yab_record(ab_ctc: AddressBookContact) -> str:
+def _gen_yab_record(contact: Contact) -> str:
+	info = contact.info
+	
 	fname = None
 	lname = None
 	nname = None
@@ -152,26 +140,26 @@ def _gen_yab_record(ab_ctc: AddressBookContact) -> str:
 	hphone = None
 	wphone = None
 	mphone = None
-	if ab_ctc.first_name is not None:
-		fname = ' fname="{}"'.format(ab_ctc.first_name)
-	if ab_ctc.last_name is not None:
-		lname = ' lname="{}"'.format(ab_ctc.last_name)
-	if ab_ctc.nickname is not None:
-		nname = ' nname="{}"'.format(ab_ctc.nickname)
-	if ab_ctc.personal_email is not None:
-		email = ' email="{}"'.format(ab_ctc.personal_email)
-	if ab_ctc.home_phone is not None:
-		hphone = ' hphone="{}"'.format(ab_ctc.home_phone)
-	if ab_ctc.work_phone is not None:
-		wphone = ' wphone="{}"'.format(ab_ctc.work_phone)
-	if ab_ctc.mobile_phone is not None:
-		mphone = ' mphone="{}"'.format(ab_ctc.mobile_phone)
+	if info.first_name is not None:
+		fname = ' fname="{}"'.format(info.first_name)
+	if info.last_name is not None:
+		lname = ' lname="{}"'.format(info.last_name)
+	if info.nickname is not None:
+		nname = ' nname="{}"'.format(info.nickname)
+	if info.personal_email is not None:
+		email = ' email="{}"'.format(info.personal_email)
+	if info.home_phone is not None:
+		hphone = ' hphone="{}"'.format(info.home_phone)
+	if info.work_phone is not None:
+		wphone = ' wphone="{}"'.format(info.work_phone)
+	if info.mobile_phone is not None:
+		mphone = ' mphone="{}"'.format(info.mobile_phone)
 	
 	return '<record userid="{yid}"{fname}{lname}{nname}{email}{hphone}{wphone}{mphone} dbid="{contact_id}"/>'.format(
-		yid = yahoo_id(ab_ctc.email),
+		yid = yahoo_id(contact.email),
 		fname = fname or '', lname = lname or '', nname = nname or '',
 		email = email or '', hphone = hphone or '', wphone = wphone or '', mphone = mphone or '',
-		contact_id = ab_ctc.id,
+		contact_id = contact.yahoo_contact_id,
 	)
 
 async def handle_chat_banad(req: web.Request) -> web.Response:

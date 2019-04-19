@@ -21,7 +21,11 @@ from core.models import Substatus, Lst, NetworkID, User, OIM, Contact, TextWithD
 from core.client import Client
 
 from .msnp import MSNPCtrl
-from .misc import build_presence_notif, encode_msnobj, encode_payload, decode_capabilities_capabilitiesex, decode_email_networkid, encode_email_networkid, decode_email_pop, gen_mail_data, gen_chal_response, generate_rps_key, encrypt_with_key_and_iv_tripledes_cbc, Err, MSNStatus
+from .misc import (
+	build_presence_notif, encode_msnobj, encode_payload, decode_capabilities_capabilitiesex,
+	decode_email_networkid, encode_email_networkid, decode_email_pop, gen_mail_data, gen_chal_response,
+	generate_rps_key, encrypt_with_key_and_iv_tripledes_cbc, Err, MSNStatus,
+)
 
 MSNP_DIALECTS = ['MSNP{}'.format(d) for d in (
 	# Actually supported
@@ -32,7 +36,10 @@ MSNP_DIALECTS = ['MSNP{}'.format(d) for d in (
 )]
 
 class MSNPCtrlNS(MSNPCtrl):
-	__slots__ = ('backend', 'dialect', 'usr_email', 'bs', 'client', 'syn_ser', 'gcf_sent', 'syn_sent', 'iln_sent', 'challenge', 'rps_challenge', 'circle_presence', 'initial_adl_sent', 'circle_adl_sent')
+	__slots__ = (
+		'backend', 'dialect', 'usr_email', 'bs', 'client', 'syn_ser', 'gcf_sent', 'syn_sent',
+		'iln_sent', 'challenge', 'rps_challenge', 'circle_presence', 'initial_adl_sent', 'circle_adl_sent',
+	)
 	
 	backend: Backend
 	dialect: int
@@ -433,7 +440,7 @@ class MSNPCtrlNS(MSNPCtrl):
 					cs = [c for c in contacts.values() if c.lists & lst]
 					if cs:
 						for i, c in enumerate(cs):
-							gs = ((','.join([group.id for group in c._groups.copy()]) or '0') if lst == Lst.FL else None)
+							gs = ((','.join([cge.group_id for cge in c._groups]) or '0') if lst == Lst.FL else None)
 							self.send_reply('LST', trid, lst.name, ser, i + 1, len(cs), c.head.email, c.status.name or c.head.email, gs)
 							for bpr_setting in ('PHH','PHM','PHW','MOB'):
 								bpr_value = c.head.settings.get(bpr_setting)
@@ -457,7 +464,7 @@ class MSNPCtrlNS(MSNPCtrl):
 				for g in detail._groups_by_id.values():
 					self.send_reply('LSG', g.id, g.name, 0)
 				for c in contacts.values():
-					self.send_reply('LST', c.head.email, c.status.name or c.head.email, int(c.lists), ','.join([group.id for group in c._groups.copy()]) or '0')
+					self.send_reply('LST', c.head.email, c.status.name or c.head.email, int(c.lists), ','.join([cge.group_id for cge in c._groups]) or '0')
 					for bpr_setting in ('PHH','PHM','PHW','MOB'):
 						bpr_value = c.head.settings.get(bpr_setting)
 						if bpr_value:
@@ -478,7 +485,7 @@ class MSNPCtrlNS(MSNPCtrl):
 			for c in contacts.values():
 				#if self.backend.util_msn_is_circle_user(c.head.uuid):
 				self.send_reply('LST', 'N={}'.format(c.head.email), 'F={}'.format(c.status.name or c.head.email), 'C={}'.format(c.head.uuid),
-					int(c.lists), (None if dialect < 12 else '1'), ','.join([(group.id if self.dialect == 10 else group.uuid) for group in c._groups.copy()])
+					int(c.lists), (None if dialect < 12 else '1'), ','.join([(cge.group_id if self.dialect == 10 else cge.group_uuid) for cge in c._groups])
 				)
 				for bpr_setting in ('PHH','PHM','PHW','MOB'):
 					bpr_value = c.head.settings.get(bpr_setting)
@@ -859,7 +866,7 @@ class MSNPCtrlNS(MSNPCtrl):
 					
 					if contact_uuid is not None:
 						try:
-							bs.me_contact_remove(contact_uuid, lsts, remove_from_ab = False)
+							bs.me_contact_remove(contact_uuid, lsts)
 						except Exception:
 							pass
 		except Exception as ex:
@@ -985,7 +992,7 @@ class MSNPCtrlNS(MSNPCtrl):
 			self.send_reply(Err.InvalidUser, trid)
 			return
 		try:
-			bs.me_contact_remove(contact_uuid, lst, group_id = group_id, remove_from_ab = True)
+			bs.me_contact_remove(contact_uuid, lst, group_id = group_id)
 		except Exception as ex:
 			self.send_reply(Err.GetCodeForException(ex, self.dialect), trid)
 			return

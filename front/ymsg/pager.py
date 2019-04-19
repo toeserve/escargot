@@ -277,8 +277,8 @@ class YMSGCtrlPager(YMSGCtrlBase):
 		contact = contacts.get(contact_uuid)
 		if contact is not None and contact.lists & Lst.FL:
 			if contact._groups:
-				for group_other in contact._groups.copy():
-					if detail._groups_by_id[group_other.id].name == buddy_group:
+				for cge in contact._groups:
+					if detail._groups_by_id[cge.group_id].name == buddy_group:
 						add_request_response.add(b'66', b'2')
 						self.send_reply(YMSGService.FriendAdd, YMSGStatus.BRB, self.sess_id, add_request_response)
 						return
@@ -321,11 +321,11 @@ class YMSGCtrlPager(YMSGCtrlBase):
 			if buddy_group == '(No Group)':
 				for group_other in contact._groups.copy():
 					group_full = False
-					bs.me_group_contact_remove(group_other.id, contact.head.uuid)
+					bs.me_group_contact_remove(group_other.group_id, contact.head.uuid)
 					for ctc_other in detail.contacts.values():
 						if ctc_other is contact: continue
-						for group_ctc in ctc_other._groups.copy():
-							if group_ctc.id is group_other.id:
+						for group_ctc in ctc_other._groups:
+							if group_ctc.group_id is group_other.group_id:
 								group_full = True
 								break
 						if group_full:
@@ -411,8 +411,6 @@ class YMSGCtrlPager(YMSGCtrlBase):
 		detail = user.detail
 		assert detail is not None
 		
-		group = None
-		
 		contact_uuid = yahoo_id_to_uuid(self.backend, contact_id)
 		if contact_uuid is None:
 			return
@@ -422,11 +420,11 @@ class YMSGCtrlPager(YMSGCtrlBase):
 		if contact is None:
 			return
 		
-		if contact._groups:
-			for group_other in contact._groups.copy():
-				if detail._groups_by_id[group_other.id].name == buddy_group:
-					group = detail._groups_by_id[group_other.id]
-					break
+		group = None
+		for group_other in contact._groups:
+			if detail._groups_by_id[group_other.group_id].name == buddy_group:
+				group = detail._groups_by_id[group_other.group_id]
+				break
 		
 		if group is None and buddy_group != '(No Group)':
 			return
@@ -894,8 +892,8 @@ class YMSGCtrlPager(YMSGCtrlBase):
 		for grp in detail._groups_by_id.values():
 			contact_list = []
 			for c in cs_fl:
-				for group in c._groups.copy():
-					if group.id == grp.id:
+				for cge in c._groups:
+					if cge.group_id == grp.id:
 						contact_list.append(misc.yahoo_id(c.head.email))
 			if contact_list:
 				contact_group_list.append(grp.name + ':' + ','.join(contact_list) + '\n')

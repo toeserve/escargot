@@ -10,7 +10,10 @@ from .user import UserService
 from .auth import AuthService
 from .stats import Stats
 from .client import Client
-from .models import User, UserDetail, Group, Lst, OIM, Contact, AddressBookContact, UserStatus, TextWithData, MessageData, Substatus, LoginOption
+from .models import (
+	User, UserDetail, Group, Lst, OIM, Contact, UserStatus, TextWithData, MessageData,
+	Substatus, LoginOption, ContactInfo,
+)
 from . import error, event
 
 class Ack(IntFlag):
@@ -455,17 +458,6 @@ class BackendSession(Session):
 		for ctc in detail.contacts.values():
 			ctc.remove_from_group(group)
 		self.backend._mark_modified(user)
-		
-		ctcs_to_update = []
-		
-		tpl = self.backend.user_service.get_ab_contents(user)
-		assert tpl is not None
-		_, _, _, ctcs_ab = tpl
-		for ctc_ab in ctcs_ab.values():
-			if group.uuid in ctc_ab.groups:
-				ctc_ab.groups.remove(group.uuid)
-				ctcs_to_update.append(ctc_ab)
-		self.backend.user_service.mark_ab_modified({ 'contacts': ctcs_to_update, }, user)
 	
 	def me_group_edit(self, group_id: str, *, new_name: Optional[str] = None, is_favorite: Optional[bool] = None) -> None:
 		user = self.user
@@ -499,11 +491,6 @@ class BackendSession(Session):
 			raise error.ContactAlreadyOnList()
 		ctc.add_group_to_entry(group)
 		self.backend._mark_modified(user)
-		
-		ctc_ab = self.backend.user_service.ab_get_entry_by_email(ctc.head.email, 'Regular', user)
-		if ctc_ab:
-			ctc_ab.groups.add(group.uuid)
-			self.backend.user_service.mark_ab_modified({ 'contacts': [ctc_ab], }, user)
 	
 	def me_group_contact_remove(self, group_id: str, contact_uuid: str) -> None:
 		user = self.user
@@ -518,13 +505,9 @@ class BackendSession(Session):
 				raise error.GroupDoesNotExist()
 			ctc.remove_from_group(group)
 			self.backend._mark_modified(user)
-			
-			ctc_ab = self.backend.user_service.ab_get_entry_by_email(ctc.head.email, 'Regular', user)
-			if ctc_ab:
-				ctc_ab.groups.remove(group.uuid)
-				self.backend.user_service.mark_ab_modified({ 'contacts': [ctc_ab], }, user)
 	
 	def me_contact_add(self, contact_uuid: str, lst: Lst, *, trid: Optional[str] = None, name: Optional[str] = None, message: Optional[TextWithData] = None, group_id: Optional[str] = None, adder_id: Optional[str] = None, add_to_ab: bool = True, needs_notify: bool = False) -> Tuple[Contact, User]:
+		# TODO: add_to_ab is whether the contact should be on the "Chat" list
 		backend = self.backend
 		ctc_head = backend._load_user_record(contact_uuid)
 		if ctc_head is None:
@@ -545,34 +528,15 @@ class BackendSession(Session):
 		if ((lst & Lst.AL or lst & Lst.BL) and ctc.lists & Lst.RL) or needs_notify:
 			for sess_added in backend._sc.get_sessions_by_user(ctc_head):
 				if sess_added is self: continue
-				if ctc_me:
-					if ctc_me.lists & Lst.FL:
-						sess_added.evt.on_presence_notification(self, ctc_me, (ctc_status if lst & Lst.BL else Substatus.Offline), False, visible_notif = False, send_status_on_bl = True, updated_phone_info = {
-							'PHH': user.settings.get('PHH'),
-							'PHW': user.settings.get('PHW'),
-							'PHM': user.settings.get('PHM'),
-							'MOB': user.settings.get('MOB'),
-						})
+				if not ctc_me: continue
+				if not (ctc_me.lists & Lst.FL): continue
+				sess_added.evt.on_presence_notification(self, ctc_me, (ctc_status if lst & Lst.BL else Substatus.Offline), False, visible_notif = False, send_status_on_bl = True, updated_phone_info = {
+					'PHH': user.settings.get('PHH'),
+					'PHW': user.settings.get('PHW'),
+					'PHM': user.settings.get('PHM'),
+					'MOB': user.settings.get('MOB'),
+				})
 		return ctc, ctc_head
-	
-	def me_ab_contact_edit(self, ab_contacts: List[AddressBookContact]) -> None:
-		user = self.user
-		detail = user.detail
-		assert detail is not None
-		
-		self.backend.user_service.mark_ab_modified({ 'contacts': ab_contacts }, user)
-		
-		for ab_contact in ab_contacts:
-			if ab_contact.member_uuid is None: continue
-			ctc = detail.contacts.get(ab_contact.member_uuid)
-			if ctc is None: continue
-			for group_uuid in ab_contact.groups:
-				group = detail.get_group_by_id(group_uuid)
-				if group is not None and not ctc.group_in_entry(group):
-					ctc.add_group_to_entry(group)
-			if ctc.status.name != ab_contact.name:
-				ctc.status.name = ab_contact.name
-		self.backend._mark_modified(user)
 	
 	def me_contact_rename(self, contact_uuid: str, new_name: str) -> None:
 		user = self.user
@@ -586,21 +550,17 @@ class BackendSession(Session):
 		if len(new_name) > 387:
 			raise error.NicknameExceedsLengthLimit()
 		
-		ctc.status.name = new_name
+		ctc.info.display_name = new_name
 		self.backend._mark_modified(user)
-		
-		ctc_ab = self.backend.user_service.ab_get_entry_by_email(ctc.head.email, 'Regular', user)
-		if ctc_ab is not None:
-			ctc_ab.name = new_name
-			self.backend.user_service.mark_ab_modified({ 'contacts': [ctc_ab] }, user)
 	
 	def me_contact_remove(self, contact_uuid: str, lst: Lst, *, remove_from_ab: bool = True, group_id: Optional[str] = None) -> None:
+		# TODO: remove_from_ab is whether the contact should be on the "Chat" list
 		backend = self.backend
 		user = self.user
 		detail = user.detail
 		assert detail is not None
 		ctc = detail.contacts.get(contact_uuid)
-		if ctc is None: 
+		if ctc is None:
 			raise error.ContactDoesNotExist()
 		assert not lst & Lst.RL
 		self._remove_from_list(user, ctc.head, lst, remove_from_ab, group_id)
@@ -612,14 +572,14 @@ class BackendSession(Session):
 			ctc_me = ctc_detail.contacts.get(user.uuid)
 			for sess_added in backend._sc.get_sessions_by_user(ctc.head):
 				if sess_added is self: continue
-				if ctc_me:
-					if ctc_me.lists & Lst.FL:
-						sess_added.evt.on_presence_notification(self, ctc_me, Substatus.Offline, False, updated_phone_info = {
-							'PHH': user.settings.get('PHH'),
-							'PHW': user.settings.get('PHW'),
-							'PHM': user.settings.get('PHM'),
-							'MOB': user.settings.get('MOB'),
-						})
+				if not ctc_me: continue
+				if not (ctc_me.lists & Lst.FL): continue
+				sess_added.evt.on_presence_notification(self, ctc_me, Substatus.Offline, False, updated_phone_info = {
+					'PHH': user.settings.get('PHH'),
+					'PHW': user.settings.get('PHW'),
+					'PHM': user.settings.get('PHM'),
+					'MOB': user.settings.get('MOB'),
+				})
 	
 	def me_contact_deny(self, adder_uuid: str, deny_message: Optional[str], *, addee_id: Optional[str] = None) -> None:
 		user_adder = self.backend._load_user_record(adder_uuid)
@@ -635,10 +595,11 @@ class BackendSession(Session):
 		contacts = detail.contacts
 		
 		updated = False
-		ab_updated = False
 		
 		if ctc_head.uuid not in contacts:
-			contacts[ctc_head.uuid] = Contact(ctc_head, set(), Lst.Empty, UserStatus(name))
+			contacts[ctc_head.uuid] = Contact(
+				ctc_head, set(), Lst.Empty, UserStatus(name), ContactInfo(display_name = name or ctc_head.email)
+			)
 			updated = True
 		ctc = contacts[ctc_head.uuid]
 		
@@ -654,11 +615,8 @@ class BackendSession(Session):
 		if name is not None and (ctc.status.name is None or orig_name != name):
 			ctc.status.name = name
 			updated = True
-			if ctc.lists & Lst.FL:
-				ab_updated = True
 		
 		if lst == Lst.FL:
-			ab_updated = True
 			if group_id is not None:
 				try:
 					self.me_group_contact_add(group_id, ctc_head.uuid)
@@ -668,17 +626,6 @@ class BackendSession(Session):
 		if updated:
 			self.backend._mark_modified(user, detail = detail)
 			self.backend._sync_contact_statuses(user)
-		if add_to_ab and ab_updated:
-			ctc_ab = self.backend.user_service.ab_get_entry_by_email(ctc_head.email, 'Regular', user)
-			if ctc_ab is None:
-				ctc_ab = AddressBookContact(
-					'Regular', self.backend.user_service.gen_ab_entry_id(user), gen_uuid(), ctc.head.email, '', set(),
-					member_uuid = ctc_head.uuid, is_messenger_user = True,
-				)
-			ctc_ab.name = ctc.status.name
-			for group in ctc._groups:
-				ctc_ab.groups.add(group.uuid)
-			self.backend.user_service.mark_ab_modified({ 'contacts': [ctc_ab] }, user)
 		
 		return ctc
 	
@@ -702,9 +649,6 @@ class BackendSession(Session):
 				ctc.lists &= ~lst
 				if lst == Lst.FL:
 					ctc._groups = set()
-					if remove_from_ab:
-						if self.backend.user_service.ab_get_entry_by_email(ctc_head.email, 'Regular', user):
-							self.backend.user_service.ab_delete_entry_by_email(ctc_head.email, 'Regular', user)
 				updated = True
 		
 		if not ctc.lists:
