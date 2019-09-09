@@ -131,9 +131,6 @@ def _util_usr_final(sess, trid, token):
 	
 	sess.send_reply('USR', trid, 'OK', user.email, *args)
 	
-	if dialect < 13:
-		return
-	
 	(high, low) = _uuid_to_high_low(user.uuid)
 	(ip, port) = sess.get_peername()
 	now = datetime.utcnow()
@@ -147,11 +144,10 @@ def _util_usr_final(sess, trid, token):
 		)
 		sess.send_reply('NFY', 'PUT', msg0)
 	else:
-		sess.send_reply('SBS', 0, 'null')
-		if 18 <= dialect < 21:
-			# MSNP21 doesn't use this; unsure if 19/20 use it
-			sess.send_reply('UBX', '1:' + user.email, b'')
-		sess.send_reply('PRP', 'MFN', user.status.name)
+		if dialect >= 11:
+			self.send('SBS', 0, 'null')
+		if dialect >= 13:
+			sess.send_reply('PRP', 'MFN', user.status.name)
 	
 	msg1 = _encode_payload(PAYLOAD_MSG_1,
 		time = now.timestamp(), high = high, low = low,
@@ -159,8 +155,17 @@ def _util_usr_final(sess, trid, token):
 	)
 	sess.send_reply('MSG', 'Hotmail', 'Hotmail', msg1)
 	
-	msg2 = _encode_payload(PAYLOAD_MSG_2)
-	sess.send_reply('MSG', 'Hotmail', 'Hotmail', msg2)
+	if 16 <= dialect < 21:
+		# MSNP21 doesn't use this; unsure if 19/20 use it
+		if dialect >= 18:
+			rst = ('1:' + user.email,)
+		else:
+			rst = (user.email, '1')
+		self.send_reply('UBX', *rst, b'')
+	
+	if dialect >= 11:
+		msg2 = _encode_payload(PAYLOAD_MSG_2)
+		sess.send_reply('MSG', 'Hotmail', 'Hotmail', msg2)
 
 # State = Live
 
