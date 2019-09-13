@@ -157,7 +157,8 @@ def _msnp_encode(m: List[object], buf, logger) -> None:
 	if isinstance(m[-1], bytes):
 		data = m[-1]
 		m[-1] = len(data)
-	m = tuple(str(x).replace(' ', '%20') for x in m if x is not None)
+	#TODO: Escape `%` properly for anything that isn't already escaped of that character
+	m = tuple(str(x).replace(' ', '%20').replace('\r', '%0D').replace('\n', '%0A') for x in m if x is not None)
 	_truncated_log(logger, '<<<', m)
 	w = buf.write
 	w(' '.join(m).encode('utf-8'))
