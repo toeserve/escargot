@@ -145,7 +145,7 @@ def _util_usr_final(sess, trid, token):
 		sess.send_reply('NFY', 'PUT', msg0)
 	else:
 		if dialect >= 11:
-			self.send('SBS', 0, 'null')
+			sess.send_reply('SBS', 0, 'null')
 		if dialect >= 13:
 			sess.send_reply('PRP', 'MFN', user.status.name)
 	
