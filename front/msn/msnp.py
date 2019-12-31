@@ -1,12 +1,12 @@
 import io
 from typing import List
-from urllib.parse import unquote
+from urllib.parse import unquote, quote
 
 from core.session import Session, SessionState
 from core import event
 
 from . import msg_ns, msg_sb
-from .misc import build_msnp_presence_notif
+from .misc import build_msnp_presence_notif, MSNObj
 
 class MSNPWriter:
 	def __init__(self, logger, sess_state: SessionState):
@@ -153,12 +153,17 @@ _PAYLOAD_COMMANDS = {
 
 def _msnp_encode(m: List[object], buf, logger) -> None:
 	m = list(m)
+	msnobj = None
 	data = None
 	if isinstance(m[-1], bytes):
 		data = m[-1]
 		m[-1] = len(data)
-	#TODO: Escape `%` properly for anything that isn't already escaped of that character
-	m = tuple(str(x).replace(' ', '%20').replace('\r', '%0D').replace('\n', '%0A') for x in m if x is not None)
+	if isinstance(m[-1], MSNObj):
+		msnobj = m[-1].data
+		m[-1] = None
+	m = tuple(str(x).replace('%', '%25').replace(' ', '%20').replace('\r', '%0D').replace('\n', '%0A') for x in m if x is not None)
+	if msnobj:
+		m += (_encode_msnobj(msnobj),)
 	_truncated_log(logger, '<<<', m)
 	w = buf.write
 	w(' '.join(m).encode('utf-8'))
@@ -208,6 +213,10 @@ class MSNP_SB_SessState(MSNP_SessState):
 	
 	def on_connection_lost(self, sess: Session) -> None:
 		self.chat.on_leave(sess)
+
+def _encode_msnobj(msnobj):
+	if msnobj is None: return None
+	return quote(msnobj, safe = '')
 
 def _truncated_log(logger, pre, m):
 	if m[0] in ('UUX', 'MSG', 'ADL'):

@@ -5,7 +5,7 @@ from core import session
 from core.models import Substatus, Lst
 from core.client import Client
 
-from .misc import build_msnp_presence_notif, MSNPHandlers, encode_msnobj, Err
+from .misc import build_msnp_presence_notif, MSNPHandlers, MSNObj, Err
 
 _handlers = MSNPHandlers()
 apply = _handlers.apply
@@ -400,7 +400,7 @@ def _m_chg(sess, trid, sts_name, capabilities = None, msnobj = None):
 	})
 	sess.state.front_specific['msn_capabilities'] = capabilities
 	sess.state.front_specific['msn_msnobj'] = msnobj
-	sess.send_reply('CHG', trid, sts_name, capabilities, encode_msnobj(msnobj))
+	sess.send_reply('CHG', trid, sts_name, capabilities, MSNObj(msnobj))
 	
 	# Send ILNs
 	state = sess.state

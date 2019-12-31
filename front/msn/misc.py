@@ -1,4 +1,3 @@
-from urllib.parse import quote
 from util.misc import first_in_iterable
 
 from core import error
@@ -47,7 +46,7 @@ def build_msnp_presence_notif(trid, ctc, dialect, backend):
 	if dialect >= 8:
 		rst.append(ctc_sess.state.front_specific.get('msn_capabilities') or 0)
 	if dialect >= 9:
-		rst.append(encode_msnobj(ctc_sess.state.front_specific.get('msn_msnobj') or '<msnobj/>'))
+		rst.append(MSNObj(ctc_sess.state.front_specific.get('msn_msnobj') or '<msnobj/>'))
 	
 	if dialect >= 18:
 		yield (*frst, status.substatus.name, encode_email_networkid(head.email, networkid), status.name, *rst)
@@ -69,9 +68,9 @@ def build_msnp_presence_notif(trid, ctc, dialect, backend):
 def encode_email_networkid(email, networkid):
 	return '{}:{}'.format(networkid or 1, email)
 
-def encode_msnobj(msnobj):
-	if msnobj is None: return None
-	return quote(msnobj, safe = '')
+class MSNObj:
+	def __init__(self, data):
+		self.data = data
 
 class Err:
 	InvalidParameter = 201
