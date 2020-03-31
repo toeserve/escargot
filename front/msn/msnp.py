@@ -73,7 +73,6 @@ class MSNPWriter:
 			# TODO: What do?
 			return
 		if isinstance(outgoing_event, event.CloseEvent):
-			self._write(['OUT'])
 			return
 		
 		raise Exception("Unknown outgoing_event", outgoing_event)

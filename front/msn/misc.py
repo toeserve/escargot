@@ -17,7 +17,6 @@ class MSNPHandlers:
 		self._map[msg] = f
 
 def _m_out(sess):
-	sess.send_reply('OUT')
 	sess.close()
 
 def build_msnp_presence_notif(trid, ctc, dialect, backend):
