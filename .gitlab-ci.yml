@@ -1,0 +1,30 @@
+before_script:
+  - 'which ssh-agent || ( apt update -y && apt install openssh-client -y )'
+  - eval $(ssh-agent -s)
+  - ssh-add <(echo "$SSH_PRIVATE_KEY")
+  - mkdir -p ~/.ssh
+  - chmod 700 ~/.ssh
+  - echo "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+  - chmod 644 ~/.ssh/known_hosts
+
+stages:
+  - deploy
+
+deploy_live:
+  stage: deploy
+  environment:
+    name: live
+    url: https://escargot.log1p.xyz
+  only:
+    - live
+  script:
+    - |-
+        ssh userbane@escargot.log1p.xyz <<END
+        set -e
+        cd /var/www/escargot/server
+        git fetch --prune
+        git reset --hard origin/live
+        sudo systemctl daemon-reload
+        sudo systemctl reset-failed
+        sudo systemctl restart escargot-server
+        END
