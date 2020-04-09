@@ -164,7 +164,11 @@ async def handle_get_msn_md5_response(req):
 		}, text = '')
 	
 	# Add token of MD5 response so NS can properly detect and report a session as a WebTV client for stats
-	backend._auth_service.create_token('msn/wtv-stats', 'webtv-client', token = response)
+	try:
+		backend._auth_service.create_token('msn/wtv-stats', 'webtv-client', token = response)
+	except:
+		# Don't let WebTV auth service fail if `assert` is returned (token already exists)
+		pass
 	
 	return web.HTTPOk(headers = {
 		'X-Status': 'success',
