@@ -31,6 +31,13 @@ class UserService:
 		if password_md5 is None: return None
 		return hasher.extract_salt(password_md5)
 	
+	def get_md5_password_hash(self, email):
+		with Session() as sess:
+			tmp = sess.query(DBUser.password_md5).filter(DBUser.email == email).one_or_none()
+			password_md5 = tmp and tmp[0]
+		if password_md5 is None: return None
+		return hasher_md5.extract_hash(password_md5)
+	
 	def update_date_login(self, uuid):
 		with Session() as sess:
 			sess.query(DBUser).filter(DBUser.uuid == uuid).update({

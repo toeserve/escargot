@@ -75,6 +75,10 @@ def _m_usr(sess, trid, authtype, stage, *args):
 			return
 		if stage == 'S':
 			md5_hash = args[0]
+			# On WebTV, the hash should already be verified as authentic, so assume that's the case when identifying clients connecting from there
+			is_webtv = (backend._auth_service.pop_token('msn/wtv-stats', md5_hash) == 'webtv-client')
+			if is_webtv:
+				sess.client = Client('msn', d, 'webtv')
 			backend.login_md5_verify(sess, state.usr_email, md5_hash)
 			_util_usr_final(sess, trid, None)
 			return
@@ -446,6 +450,9 @@ def _m_xfr(sess, trid, dest):
 	if dest != 'SB':
 		sess.send_reply(Err.InvalidParameter, trid)
 		return
+	if not sess.state.chat_enabled:
+		# TODO: What to do here?
+		return
 	dialect = sess.state.dialect
 	token = sess.state.backend.sb_token_create(sess, extra_data = {
 		'dialect': dialect, 'msn_capabilities': sess.state.front_specific.get('msn_capabilities') or 0,
@@ -456,6 +463,21 @@ def _m_xfr(sess, trid, dest):
 	if dialect >= 14:
 		extra += (1,)
 	sess.send_reply('XFR', trid, dest, 'm1.escargot.log1p.xyz:1864', 'CKI', token, *extra)
+
+@_handlers
+def _m_ims(sess, trid, value):
+	#>>> IMS 28 ON/OFF
+	# Only used in WebTV clients; toggles whether `RNG`s can be received and `XFR`s can be sent
+	if value == 'ON':
+		sess.state.chat_enabled = True
+	elif value == 'OFF':
+		sess.state.chat_enabled = False
+	else:
+		# TODO: Proper response to bad `IMS`?
+		sess.send_reply(Err.NotExpected, trid)
+		return
+	
+	sess.send_reply('IMS', trid, '0', value)
 
 # These four commands appear to be useless:
 @_handlers

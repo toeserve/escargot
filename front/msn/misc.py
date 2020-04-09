@@ -84,6 +84,7 @@ class Err:
 	GroupZeroUnremovable = 230
 	InternalServerError = 500
 	CommandDisabled = 502
+	NotExpected = 715
 	AuthFail = 911
 	
 	@classmethod

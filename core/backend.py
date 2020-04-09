@@ -61,6 +61,11 @@ class Backend:
 	def login_md5_get_salt(self, email):
 		return self._user_service.get_md5_salt(email)
 	
+	def login_md5_get_password_hash(self, email, given_salt):
+		salt = self._user_service.get_md5_salt(email)
+		if salt is None or salt != given_salt: return None
+		return self._user_service.get_md5_password_hash(email)
+	
 	def login_md5_verify(self, sess, email, md5_hash):
 		uuid = self._user_service.login_md5(email, md5_hash)
 		return self._login_common(sess, uuid, email)
@@ -354,6 +359,7 @@ class Backend:
 		if not ctc_sessions: raise error.ContactNotOnline()
 		
 		for ctc_sess in ctc_sessions:
+			if not ctc_sess.state.chat_enabled: continue
 			extra_data = ctc_sess.state.get_sb_extra_data() or {}
 			extra_data['client'] = ctc_sess.client
 			token = self._auth_service.create_token('sb/cal', { 'uuid': ctc_user.uuid, 'extra_data': extra_data })

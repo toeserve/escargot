@@ -61,6 +61,7 @@ def create_app(backend):
 	app.router.add_route('OPTIONS', '/gateway/gateway.dll', handle_http_gateway)
 	app.router.add_post('/gateway/gateway.dll', handle_http_gateway)
 	app.router.add_get('/etc/debug', handle_debug)
+	app.router.add_get('/get-msn-md5-response', handle_get_msn_md5_response)
 	app.router.add_route('*', '/{path:.*}', handle_other)
 	
 	app.on_response_prepare.append(on_response_prepare)
@@ -139,6 +140,36 @@ async def handle_http_gateway(req):
 
 async def handle_debug(req):
 	return render(req, 'debug.html')
+
+async def handle_get_msn_md5_response(req):
+	# This is for interoperability with a WebTV server project aiming to restore MSN Messenger functionality among other things. We've yet to have an official WebTV protocol-based implementation..
+	backend = req.app['backend']
+	
+	service_key = req.headers.get('X-Service-Key')
+	if service_key not in settings.SERVICE_KEYS: return web.HTTPUnauthorized(text = '')
+	
+	username = req.headers.get('X-Email-Username')
+	domain = req.headers.get('X-Email-Domain')
+	md5_salt = req.headers.get('X-MSN-MD5-Salt')
+	
+	if not username or not domain or not md5_salt:
+		return web.HTTPBadRequest(text = '')
+	
+	email = '{}@{}'.format(username, domain)
+	
+	response = backend.login_md5_get_password_hash(email, md5_salt)
+	if response is None:
+		return web.HTTPOk(headers = {
+			'X-Status': 'failed',
+		}, text = '')
+	
+	# Add token of MD5 response so NS can properly detect and report a session as a WebTV client for stats
+	backend._auth_service.create_token('msn/wtv-stats', 'webtv-client', token = response)
+	
+	return web.HTTPOk(headers = {
+		'X-Status': 'success',
+		'X-Response': response,
+	}, text = '')
 
 async def handle_abservice(req):
 	header, action, ns_sess, token = await _preprocess_soap(req)

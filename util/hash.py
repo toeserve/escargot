@@ -67,6 +67,12 @@ class MD5PasswordHasher(Hasher):
 		except ValueError: return False
 		hash = binascii.hexlify(base64.b64decode(hash)).decode('ascii')
 		return secrets.compare_digest(hash_1, hash)
+	
+	@classmethod
+	def extract_hash(cls, encoded):
+		try: (_, _, hash) = encoded.split(cls.separator)
+		except ValueError: return None
+		return binascii.hexlify(base64.b64decode(hash)).decode('ascii')
 Hasher._HASHERS[MD5PasswordHasher.algorithm] = MD5PasswordHasher
 
 def gen_salt(length = 15):
