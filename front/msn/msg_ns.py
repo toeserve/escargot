@@ -78,7 +78,7 @@ def _m_usr(sess, trid, authtype, stage, *args):
 			# On WebTV, the hash should already be verified as authentic, so assume that's the case when identifying clients connecting from there
 			is_webtv = (backend._auth_service.pop_token('msn/wtv-stats', md5_hash) == 'webtv-client')
 			if is_webtv:
-				sess.client = Client('msn', d, 'webtv')
+				sess.client = Client('msn', state.dialect, 'webtv')
 			backend.login_md5_verify(sess, state.usr_email, md5_hash)
 			_util_usr_final(sess, trid, None)
 			return
