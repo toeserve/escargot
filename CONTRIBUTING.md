@@ -1,6 +1,6 @@
 # Developer Guide
 
-## Setup 
+## Setup
 
 - you will need python 3.6+
 - ([MSYS2](https://github.com/valtron/llvm-stuff/wiki/Set-up-Windows-dev-environment-with-MSYS2) env recommended for Windows users)
@@ -12,9 +12,9 @@
 	DEBUG_MSNP = True
 	DEBUG_HTTP_REQUEST = True
 	```
-- run `python cmd/dbcreate.py`; if you get `ModuleNotFoundError: No module named '...'`, add `export PYTHONPATH=".;$PYTHONPATH"` in your `.bashrc`
-- run `python cmd/dummydata.py` (creates a few dummy accounts, check the file to see what they are/their passwords)
-- to create users, run `python cmd/user.py -h` for instructions
+- run `python script/dbcreate.py`; if you get `ModuleNotFoundError: No module named '...'`, add `export PYTHONPATH=".;$PYTHONPATH"` in your `.bashrc`
+- run `python script/dummydata.py` (creates a few dummy accounts, check the file to see what they are/their passwords)
+- to create users, run `python script/user.py -h` for instructions
 - for MSN <= 7.5, use a **patched** install, and in your `HOSTS` add `127.0.0.1 m1.escargot.log1p.xyz`
 - for WLM, use a 8.1.0178 **clean** install, replace [msidcrl40.dll](https://storage.googleapis.com/escargot-storage-1/public/msidcrl.dll), and in your `HOSTS` add:
 	```
