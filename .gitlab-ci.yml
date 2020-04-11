@@ -1,23 +1,54 @@
-before_script:
-  - 'which ssh-agent || ( apt update -y && apt install openssh-client -y )'
-  - eval $(ssh-agent -s)
-  - ssh-add <(echo "$SSH_PRIVATE_KEY")
-  - mkdir -p ~/.ssh
-  - chmod 700 ~/.ssh
-  - echo "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
-  - chmod 644 ~/.ssh/known_hosts
+image: python:3.6-buster
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+cache:
+  paths:
+    - .cache/pip
+    - .venv
 
 stages:
+  - test
   - deploy
+
+test:
+  stage: test
+  script:
+    - export PYTHONPATH=.
+    - python -m venv .venv
+    - .venv/bin/python -m pip install -U pip
+    - .venv/bin/python -m pip install -r requirements.txt
+    - touch settings_local.py
+    - .venv/bin/python -m mypy dev
+    - .venv/bin/python -m pytest
+  rules:
+    # Means:
+    # `if MR/commit to master
+    #   run if previous stages succeeded
+    # else don't run`
+    - if: '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master"'
+    - if: '$CI_COMMIT_BRANCH == "master"'
 
 deploy_live:
   stage: deploy
   environment:
     name: live
     url: https://escargot.log1p.xyz
-  only:
-    - live
+  rules:
+    # Means:
+    # `if commit to live
+    #   run if previous stages succeeded
+    # else don't run`
+    - if: '$CI_COMMIT_BRANCH == "live"'
   script:
+    - 'which ssh-agent || ( apt update -y && apt install openssh-client -y )'
+    - eval $(ssh-agent -s)
+    - ssh-add <(echo "$SSH_PRIVATE_KEY")
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - echo "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
     - |-
         ssh userbane@escargot.log1p.xyz <<END
         set -e
