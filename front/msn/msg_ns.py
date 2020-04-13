@@ -450,7 +450,7 @@ def _m_xfr(sess, trid, dest):
 	if dest != 'SB':
 		sess.send_reply(Err.InvalidParameter, trid)
 		return
-	if not sess.state.chat_enabled:
+	if not sess.user.chat_enabled:
 		# TODO: What to do here?
 		return
 	dialect = sess.state.dialect
@@ -469,9 +469,9 @@ def _m_ims(sess, trid, value):
 	#>>> IMS 28 ON/OFF
 	# Only used in WebTV clients; toggles whether `RNG`s can be received and `XFR`s can be sent
 	if value == 'ON':
-		sess.state.chat_enabled = True
+		sess.user.chat_enabled = True
 	elif value == 'OFF':
-		sess.state.chat_enabled = False
+		sess.user.chat_enabled = False
 	else:
 		# TODO: Proper response to bad `IMS`?
 		sess.send_reply(Err.NotExpected, trid)
