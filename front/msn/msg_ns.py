@@ -187,17 +187,19 @@ def _m_syn(sess, trid, *extra):
 		ser = _ser(sess.state)
 		if dialect < 6:
 			sess.send_reply('SYN', trid, ser)
+			sess.send_reply('GTC', trid, ser, settings.get('GTC', 'A'))
+			sess.send_reply('BLP', trid, ser, settings.get('BLP', 'AL'))
 			for lst in (Lst.FL, Lst.AL, Lst.BL, Lst.RL):
 				cs = [c for c in contacts.values() if c.lists & lst]
 				if cs:
 					for i, c in enumerate(cs):
-						sess.send_reply('LST', trid, lst.name, ser, len(cs), i + 1, c.head.email, c.status.name)
+						sess.send_reply('LST', trid, lst.name, ser, i + 1, len(cs), c.head.email, c.status.name)
 				else:
 					sess.send_reply('LST', trid, lst.name, ser, 0, 0)
-			sess.send_reply('GTC', trid, ser, settings.get('GTC', 'A'))
-			sess.send_reply('BLP', trid, ser, settings.get('BLP', 'AL'))
 		elif dialect < 8:
 			sess.send_reply('SYN', trid, ser)
+			sess.send_reply('GTC', trid, ser, settings.get('GTC', 'A'))
+			sess.send_reply('BLP', trid, ser, settings.get('BLP', 'AL'))
 			num_groups = len(groups) + 1
 			sess.send_reply('LSG', trid, ser, 1, num_groups, '0', "Other Contacts", 0)
 			for i, g in enumerate(groups.values()):
@@ -210,8 +212,6 @@ def _m_syn(sess, trid, *extra):
 						sess.send_reply('LST', trid, lst.name, ser, i + 1, len(cs), c.head.email, c.status.name, gs)
 				else:
 					sess.send_reply('LST', trid, lst.name, ser, 0, 0)
-			sess.send_reply('GTC', trid, ser, settings.get('GTC', 'A'))
-			sess.send_reply('BLP', trid, ser, settings.get('BLP', 'AL'))
 		else:
 			num_groups = len(groups) + 1
 			sess.send_reply('SYN', trid, ser, len(contacts), num_groups)
