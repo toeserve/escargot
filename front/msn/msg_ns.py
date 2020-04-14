@@ -185,7 +185,7 @@ def _m_syn(sess, trid, *extra):
 	if dialect < 10:
 		sess.state.syn_ser = int(extra[0])
 		ser = _ser(sess.state)
-		if dialect < 6:
+		if dialect < 7:
 			sess.send_reply('SYN', trid, ser)
 			sess.send_reply('GTC', trid, ser, settings.get('GTC', 'A'))
 			sess.send_reply('BLP', trid, ser, settings.get('BLP', 'AL'))
@@ -196,7 +196,7 @@ def _m_syn(sess, trid, *extra):
 						sess.send_reply('LST', trid, lst.name, ser, i + 1, len(cs), c.head.email, c.status.name)
 				else:
 					sess.send_reply('LST', trid, lst.name, ser, 0, 0)
-		elif dialect < 8:
+		elif dialect == 7:
 			sess.send_reply('SYN', trid, ser)
 			sess.send_reply('GTC', trid, ser, settings.get('GTC', 'A'))
 			sess.send_reply('BLP', trid, ser, settings.get('BLP', 'AL'))
