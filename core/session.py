@@ -71,6 +71,7 @@ class PollingSession(Session):
 
 class SessionState:
 	def __init__(self):
+		self.chat_enabled = True
 		self.front_specific = {}
 	
 	def on_connection_lost(self, sess: Session) -> None:

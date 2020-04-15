@@ -7,7 +7,6 @@ class User:
 		self.verified = verified
 		# `status`: true status of user
 		self.status = status
-		self.chat_enabled = True
 		self.detail = None
 		self.date_created = date_created
 

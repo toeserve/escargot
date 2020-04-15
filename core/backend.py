@@ -55,7 +55,6 @@ class Backend:
 			return
 		# User is offline, send notifications
 		user.detail = None
-		user.chat_enabled = True
 		self._sync_contact_statuses()
 		self._generic_notify(sess)
 	
@@ -357,13 +356,18 @@ class Backend:
 			if ctc.status.is_offlineish(): raise error.ContactNotOnline()
 			ctc_user = ctc.head
 		ctc_sessions = self._sc.get_sessions_by_user(ctc_user)
-		if not ctc_sessions or not ctc_user.chat_enabled: raise error.ContactNotOnline()
+		if not ctc_sessions: raise error.ContactNotOnline()
 		
+		disabled_sessions = set()
 		for ctc_sess in ctc_sessions:
+			if not ctc_sess.state.chat_enabled:
+				disabled_sessions.add(ctc_sess)
+				continue
 			extra_data = ctc_sess.state.get_sb_extra_data() or {}
 			extra_data['client'] = ctc_sess.client
 			token = self._auth_service.create_token('sb/cal', { 'uuid': ctc_user.uuid, 'extra_data': extra_data })
 			ctc_sess.send_event(event.InvitedToChatEvent(chatid, token, caller))
+		if len(ctc_sessions) == len(disabled_sessions): raise error.ContactNotOnline()
 	
 	async def _sync_db(self):
 		while True:
