@@ -128,7 +128,7 @@ def _util_usr_final(sess, trid, token):
 		args = (user.status.name,)
 	else:
 		args = ()
-	if dialect >= 8:
+	if dialect >= 6:
 		#verified = user.verified
 		verified = True
 		args += ((1 if verified else 0), 0)
@@ -399,12 +399,15 @@ def _m_blp(sess, trid, value):
 def _m_chg(sess, trid, sts_name, capabilities = None, msnobj = None):
 	#>>> CHG 120 BSY 1073791020 <msnobj .../>
 	capabilities = capabilities or 0
+	extra = ()
+	if sess.state.dialect >= 8: extra += (capabilities,)
+	if sess.state.dialect >= 9: extra += (MSNObj(msnobj),)
 	sess.state.backend.me_update(sess, {
 		'substatus': getattr(Substatus, sts_name),
 	})
 	sess.state.front_specific['msn_capabilities'] = capabilities
 	sess.state.front_specific['msn_msnobj'] = msnobj
-	sess.send_reply('CHG', trid, sts_name, capabilities, MSNObj(msnobj))
+	sess.send_reply('CHG', trid, sts_name, *extra)
 	
 	# Send ILNs
 	state = sess.state
