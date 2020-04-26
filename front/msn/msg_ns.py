@@ -35,9 +35,16 @@ def _m_ver(sess, trid, *args):
 	sess.send_reply('VER', trid, d)
 
 @_handlers
-def _m_cvr(sess, trid, *args):
-	v = args[5]
-	sess.client = Client('msn', v, 'gw' if isinstance(sess, session.PollingSession) else 'direct')
+def _m_cvr(sess, trid, lcid, os_type, os_version, *args):
+	v = args[2]
+	stat_type = ('gw' if isinstance(sess, session.PollingSession) else 'direct')
+	if os_type == 'webtv':
+		# Log version by reported ROM's build version
+		reported_version = os_version
+		stat_type = 'webtv'
+	else:
+		reported_version = v
+	sess.client = Client('msn', reported_version, stat_type)
 	sess.send_reply('CVR', trid, v, v, v, 'https://escargot.log1p.xyz', 'https://escargot.log1p.xyz')
 
 @_handlers
@@ -75,10 +82,6 @@ def _m_usr(sess, trid, authtype, stage, *args):
 			return
 		if stage == 'S':
 			md5_hash = args[0]
-			# On WebTV, the hash should already be verified as authentic, so assume that's the case when identifying clients connecting from there
-			is_webtv = (backend._auth_service.pop_token('msn/wtv-stats', md5_hash) == 'webtv-client')
-			if is_webtv:
-				sess.client = Client('msn', 'MSNP{}'.format(str(state.dialect)), 'webtv')
 			backend.login_md5_verify(sess, state.usr_email, md5_hash)
 			_util_usr_final(sess, trid, None)
 			return
