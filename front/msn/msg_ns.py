@@ -5,7 +5,7 @@ from core import session
 from core.models import Substatus, Lst
 from core.client import Client
 
-from .misc import build_msnp_presence_notif, MSNPHandlers, MSNObj, Err
+from .misc import build_msnp_presence_notif, MSNPHandlers, MSNObj, Err, ser
 
 _handlers = MSNPHandlers()
 apply = _handlers.apply
@@ -187,7 +187,7 @@ def _m_syn(sess, trid, *extra):
 	
 	if dialect < 10:
 		sess.state.syn_ser = int(extra[0])
-		ser = _ser(sess.state)
+		ser = ser(sess.state)
 		if dialect < 7:
 			sess.send_reply('SYN', trid, ser)
 			sess.send_reply('GTC', trid, ser, settings.get('GTC', 'A'))
@@ -276,7 +276,7 @@ def _m_adg(sess, trid, name, ignored = None):
 	except Exception as ex:
 		sess.send_reply(Err.GetCodeForException(ex), trid)
 		return
-	sess.send_reply('ADG', trid, _ser(sess.state), name, group.id, 0)
+	sess.send_reply('ADG', trid, ser(sess.state), name, group.id, 0)
 
 @_handlers
 def _m_rmg(sess, trid, group_id):
@@ -294,7 +294,7 @@ def _m_rmg(sess, trid, group_id):
 		sess.send_reply(Err.GetCodeForException(ex), trid)
 		return
 	
-	sess.send_reply('RMG', trid, _ser(sess.state) or 1, group_id)
+	sess.send_reply('RMG', trid, ser(sess.state) or 1, group_id)
 
 @_handlers
 def _m_reg(sess, trid, group_id, name, ignored = None):
@@ -305,7 +305,7 @@ def _m_reg(sess, trid, group_id, name, ignored = None):
 		sess.send_reply(Err.GetCodeForException(ex), trid)
 		return
 	if sess.state.dialect < 10:
-		sess.send_reply('REG', trid, _ser(sess.state), group_id, name, 0)
+		sess.send_reply('REG', trid, ser(sess.state), group_id, name, 0)
 	else:
 		sess.send_reply('REG', trid, 1, name, group_id, 0)
 
@@ -353,7 +353,7 @@ def _add_common(sess, trid, lst_name, contact_uuid, name = None, group_id = None
 		else:
 			sess.send_reply('ADC', trid, lst_name, 'N={}'.format(ctc_head.email))
 	else:
-		sess.send_reply('ADD', trid, lst_name, _ser(sess.state), ctc_head.email, name, group_id)
+		sess.send_reply('ADD', trid, lst_name, ser(sess.state), ctc_head.email, name, group_id)
 
 @_handlers
 def _m_rem(sess, trid, lst_name, usr, group_id = None):
@@ -379,7 +379,7 @@ def _m_rem(sess, trid, lst_name, usr, group_id = None):
 	except Exception as ex:
 		sess.send_reply(Err.GetCodeForException(ex), trid)
 		return
-	sess.send_reply('REM', trid, lst_name, _ser(sess.state), usr, group_id)
+	sess.send_reply('REM', trid, lst_name, ser(sess.state), usr, group_id)
 
 @_handlers
 def _m_gtc(sess, trid, value):
@@ -389,14 +389,14 @@ def _m_gtc(sess, trid, value):
 	# "Alert me when other people add me ..." Y/N
 	#>>> GTC 152 N
 	sess.state.backend.me_update(sess, { 'gtc': value })
-	sess.send_reply('GTC', trid, _ser(sess.state), value)
+	sess.send_reply('GTC', trid, ser(sess.state), value)
 
 @_handlers
 def _m_blp(sess, trid, value):
 	# Check "Only people on my Allow List ..." AL/BL
 	#>>> BLP 143 BL
 	sess.state.backend.me_update(sess, { 'blp': value })
-	sess.send_reply('BLP', trid, _ser(sess.state), value)
+	sess.send_reply('BLP', trid, ser(sess.state), value)
 
 @_handlers
 def _m_chg(sess, trid, sts_name, capabilities = None, msnobj = None):
@@ -430,7 +430,7 @@ def _m_rea(sess, trid, email, name):
 		return
 	if email == sess.user.email:
 		sess.state.backend.me_update(sess, { 'name': name })
-	sess.send_reply('REA', trid, _ser(sess.state), email, name)
+	sess.send_reply('REA', trid, ser(sess.state), email, name)
 
 @_handlers
 def _m_snd(sess, trid, email):
@@ -500,12 +500,6 @@ def _m_uun(sess, trid, email, arg0, data):
 	sess.send_reply('UUN', trid, 'OK')
 
 # Utils
-
-def _ser(state):
-	if state.dialect >= 10:
-		return None
-	state.syn_ser += 1
-	return state.syn_ser
 
 def _encode_payload(tmpl, **kwargs):
 	return tmpl.format(**kwargs).replace('\n', '\r\n').encode('utf-8')

@@ -67,6 +67,12 @@ def build_msnp_presence_notif(trid, ctc, dialect, backend):
 def encode_email_networkid(email, networkid):
 	return '{}:{}'.format(networkid or 1, email)
 
+def ser(state):
+	if state.dialect >= 10:
+		return None
+	state.syn_ser += 1
+	return state.syn_ser
+
 class MSNObj:
 	def __init__(self, data):
 		self.data = data

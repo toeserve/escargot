@@ -6,7 +6,7 @@ from core.session import Session, SessionState
 from core import event
 
 from . import msg_ns, msg_sb
-from .misc import build_msnp_presence_notif, MSNObj
+from .misc import build_msnp_presence_notif, MSNObj, ser
 
 class MSNPWriter:
 	def __init__(self, logger, sess_state: SessionState):
@@ -25,11 +25,12 @@ class MSNPWriter:
 		if isinstance(outgoing_event, event.AddedToListEvent):
 			lst = outgoing_event.lst
 			user = outgoing_event.user
+			sess = outgoing_event.sess
 			email = user.email
 			name = (user.status.name or email)
 			dialect = self._sess_state.dialect
 			if dialect < 10:
-				m = ('ADD', 0, lst.name, email, name)
+				m = ('ADD', 0, ser(sess.state), lst.name, email, name)
 			else:
 				m = ('ADC', 0, lst.name, 'N={}'.format(email), 'F={}'.format(name))
 			self._write(m)
