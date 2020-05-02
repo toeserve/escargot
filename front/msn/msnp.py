@@ -29,7 +29,7 @@ class MSNPWriter:
 			name = (user.status.name or email)
 			dialect = self._sess_state.dialect
 			if dialect < 10:
-				m = ('ADD', 0, ser(self._sess_state), lst.name, email, name)
+				m = ('ADD', 0, lst.name, ser(self._sess_state), email, name)
 			else:
 				m = ('ADC', 0, lst.name, 'N={}'.format(email), 'F={}'.format(name))
 			self._write(m)
