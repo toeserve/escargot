@@ -32,7 +32,7 @@ class User(Base):
 	settings = sa.Column(JSONType, nullable = False)
 	groups = sa.Column(JSONType, nullable = False)
 	contacts = sa.Column(JSONType, nullable = False)
-	_email_ci_index = sa.Index('email_ci_index', sa.text('LOWER(email)'), unique = True)
+	__table_args__ = (sa.Index('email_ci_index', sa.text('LOWER(email)'), unique = True),)
 
 
 engine = sa.create_engine(settings.DB)
