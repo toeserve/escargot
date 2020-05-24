@@ -1,4 +1,5 @@
 from datetime import datetime
+from sqlalchemy import func
 
 from db import Session, User as DBUser
 from util.hash import hasher, hasher_md5
@@ -12,28 +13,28 @@ class UserService:
 	
 	def login(self, email, pwd):
 		with Session() as sess:
-			dbuser = sess.query(DBUser).filter(DBUser.email == email).one_or_none()
+			dbuser = sess.query(DBUser).filter(func.lower(DBUser.email) == email.lower()).one_or_none()
 			if dbuser is None: return None
 			if not hasher.verify(pwd, dbuser.password): return None
 			return dbuser.uuid
 	
 	def login_md5(self, email, md5_hash):
 		with Session() as sess:
-			dbuser = sess.query(DBUser).filter(DBUser.email == email).one_or_none()
+			dbuser = sess.query(DBUser).filter(func.lower(DBUser.email) == email.lower()).one_or_none()
 			if dbuser is None: return None
 			if not hasher_md5.verify_hash(md5_hash, dbuser.password_md5): return None
 			return dbuser.uuid
 	
 	def get_md5_salt(self, email):
 		with Session() as sess:
-			tmp = sess.query(DBUser.password_md5).filter(DBUser.email == email).one_or_none()
+			tmp = sess.query(DBUser.password_md5).filter(func.lower(DBUser.email) == email.lower()).one_or_none()
 			password_md5 = tmp and tmp[0]
 		if password_md5 is None: return None
 		return hasher.extract_salt(password_md5)
 	
 	def get_md5_password_hash(self, email):
 		with Session() as sess:
-			tmp = sess.query(DBUser.password_md5).filter(DBUser.email == email).one_or_none()
+			tmp = sess.query(DBUser.password_md5).filter(func.lower(DBUser.email) == email.lower()).one_or_none()
 			password_md5 = tmp and tmp[0]
 		if password_md5 is None: return None
 		return hasher_md5.extract_hash(password_md5)
@@ -46,7 +47,7 @@ class UserService:
 	
 	def get_uuid(self, email):
 		with Session() as sess:
-			tmp = sess.query(DBUser.uuid).filter(DBUser.email == email).one_or_none()
+			tmp = sess.query(DBUser.uuid).filter(func.lower(DBUser.email) == email.lower()).one_or_none()
 			return tmp and tmp[0]
 	
 	def get(self, uuid):

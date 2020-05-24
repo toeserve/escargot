@@ -306,7 +306,7 @@ class Backend:
 	def login_xfr(self, sess, email, token):
 		(user, extra_data) = self._load_user('sb/xfr', token)
 		if user is None: return None
-		if user.email != email: return None
+		if user.email.lower() != email.lower(): return None
 		sess.user = user
 		sess.client = extra_data['client']
 		chat = Chat(self._stats)
@@ -317,7 +317,7 @@ class Backend:
 	def login_cal(self, sess, email, token, chatid):
 		(user, extra_data) = self._load_user('sb/cal', token)
 		if user is None: return None
-		if user.email != email: return None
+		if user.email.lower() != email.lower(): return None
 		sess.user = user
 		sess.client = extra_data['client']
 		chat = self._chats.get(chatid)
