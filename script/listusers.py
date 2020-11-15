@@ -1,20 +1,16 @@
-import db
+from typing import Optional
 from datetime import datetime, timedelta
+from core import db
+from core.conn import Conn
+import settings
 
-def main(arg = None):
-	verbose = False
-	online_since = None
-	if arg is not None:
-		if arg == 'verbose':
-			verbose = True
-		else:
-			online_since = datetime.utcnow() - timedelta(minutes = int(arg))
-	else:
-		online_since = datetime.utcnow() - timedelta(minutes = 60)
-	
+def main(*, since: int = 60, verbose: bool = False) -> None:
+	online_since = datetime.utcnow() - timedelta(minutes = since)
 	total = 0
 	total_online = 0
-	with db.Session() as sess:
+	
+	conn = Conn(settings.DB)
+	with conn.session() as sess:
 		for u in sess.query(db.User).all():
 			total += 1
 			if verbose:
@@ -27,5 +23,5 @@ def main(arg = None):
 		print("Online:", total_online)
 
 if __name__ == '__main__':
-	import sys
-	main(*sys.argv[1:])
+	import funcli
+	funcli.main()

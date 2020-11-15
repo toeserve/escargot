@@ -1,17 +1,24 @@
-from sqlalchemy import types
+from typing import Any
 import json
+from sqlalchemy import types
+from sqlalchemy.dialects import postgresql
 
-class StringyJSON(types.TypeDecorator):
+class JSONType(types.TypeDecorator): # type: ignore
 	impl = types.TEXT
 	
-	def process_bind_param(self, value, dialect):
-		if value is not None:
-			value = json.dumps(value)
-		return value
+	def load_dialect_impl(self, dialect: Any) -> Any:
+		if dialect.name == 'postgresql':
+			t = postgresql.JSON()
+		else:
+			t = types.TEXT()
+		return dialect.type_descriptor(t)
 	
-	def process_result_value(self, value, dialect):
-		if value is not None:
-			value = json.loads(value)
-		return value
-
-JSONType = StringyJSON
+	def process_bind_param(self, value: Any, dialect: Any) -> Any:
+		if value is None or dialect.name == 'postgresql':
+			return value
+		return json.dumps(value)
+	
+	def process_result_value(self, value: Any, dialect: Any) -> Any:
+		if value is None or dialect.name == 'postgresql':
+			return value
+		return json.loads(value)
