@@ -58,4 +58,5 @@ deploy_live:
         sudo systemctl daemon-reload
         sudo systemctl reset-failed
         sudo systemctl restart escargot-server
+        sudo systemctl restart escargot-site
         END

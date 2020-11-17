@@ -973,11 +973,16 @@ class YMSGCtrlPager(YMSGCtrlBase):
 			list_reply_kvs.add(b'59', arbitrary_encode(cached_y))
 			list_reply_kvs.add(b'59', arbitrary_encode(cached_t))
 		else:
-			(y_cookie, t_cookie, y_expiry, t_expiry) = self._refresh_cookies()
-			
-			domain = ('yahooloopback.log1p.xyz' if (settings.DEBUG and settings.DEBUG_YMSG) else settings.TARGET_HOST)
-			list_reply_kvs.add(b'59', arbitrary_encode('Y\t{}; expires={}; path=/; domain={}'.format(y_cookie, y_expiry, domain)))
-			list_reply_kvs.add(b'59', arbitrary_encode('T\t{}; expires={}; path=/; domain={}'.format(t_cookie, t_expiry, domain)))
+			tpl = self._refresh_cookies()
+			if tpl is None:
+				# Temp solution to deal with weird token generation issue
+				list_reply_kvs.add(b'59', 'Y\t')
+				list_reply_kvs.add(b'59', 'T\t')
+			else:
+				y_cookie, t_cookie, y_expiry, t_expiry = *tpl
+				domain = ('yahooloopback.log1p.xyz' if (settings.DEBUG and settings.DEBUG_YMSG) else settings.TARGET_HOST)
+				list_reply_kvs.add(b'59', arbitrary_encode('Y\t{}; expires={}; path=/; domain={}'.format(y_cookie, y_expiry, domain)))
+				list_reply_kvs.add(b'59', arbitrary_encode('T\t{}; expires={}; path=/; domain={}'.format(t_cookie, t_expiry, domain)))
 		
 		list_reply_kvs.add(b'59', b'C\tmg=1')
 		list_reply_kvs.add(b'3', arbitrary_encode(user.username))
@@ -1145,7 +1150,7 @@ class YMSGCtrlPager(YMSGCtrlBase):
 			_, y_expiry = auth_service.create_token('ymsg/cookie', user.username, token = y_cookie, lifetime = 86400)
 			_, t_expiry = auth_service.create_token('ymsg/cookie', self.bs, token = t_cookie, lifetime = 86400)
 		except:
-			pass
+			return None
 		
 		return (y_cookie, t_cookie, _format_cookie_expiry(datetime.datetime.utcfromtimestamp(y_expiry)), _format_cookie_expiry(datetime.datetime.utcfromtimestamp(t_expiry)))
 
