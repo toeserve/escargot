@@ -975,7 +975,7 @@ class YMSGCtrlPager(YMSGCtrlBase):
 		else:
 			(y_cookie, t_cookie, y_expiry, t_expiry) = self._refresh_cookies()
 			
-			domain = ('yahooloopback.log1p.xyz' if settings.DEBUG else settings.TARGET_HOST)
+			domain = ('yahooloopback.log1p.xyz' if (settings.DEBUG and settings.DEBUG_YMSG) else settings.TARGET_HOST)
 			list_reply_kvs.add(b'59', arbitrary_encode('Y\t{}; expires={}; path=/; domain={}'.format(y_cookie, y_expiry, domain)))
 			list_reply_kvs.add(b'59', arbitrary_encode('T\t{}; expires={}; path=/; domain={}'.format(t_cookie, t_expiry, domain)))
 		
