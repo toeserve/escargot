@@ -979,7 +979,7 @@ class YMSGCtrlPager(YMSGCtrlBase):
 				list_reply_kvs.add(b'59', 'Y\t')
 				list_reply_kvs.add(b'59', 'T\t')
 			else:
-				y_cookie, t_cookie, y_expiry, t_expiry = *tpl
+				(y_cookie, t_cookie, y_expiry, t_expiry) = tpl
 				domain = ('yahooloopback.log1p.xyz' if (settings.DEBUG and settings.DEBUG_YMSG) else settings.TARGET_HOST)
 				list_reply_kvs.add(b'59', arbitrary_encode('Y\t{}; expires={}; path=/; domain={}'.format(y_cookie, y_expiry, domain)))
 				list_reply_kvs.add(b'59', arbitrary_encode('T\t{}; expires={}; path=/; domain={}'.format(t_cookie, t_expiry, domain)))
