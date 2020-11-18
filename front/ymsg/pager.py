@@ -976,8 +976,8 @@ class YMSGCtrlPager(YMSGCtrlBase):
 			tpl = self._refresh_cookies()
 			if tpl is None:
 				# Temp solution to deal with weird token generation issue
-				list_reply_kvs.add(b'59', 'Y\t')
-				list_reply_kvs.add(b'59', 'T\t')
+				list_reply_kvs.add(b'59', b'Y\t')
+				list_reply_kvs.add(b'59', b'T\t')
 			else:
 				(y_cookie, t_cookie, y_expiry, t_expiry) = tpl
 				domain = ('yahooloopback.log1p.xyz' if (settings.DEBUG and settings.DEBUG_YMSG) else settings.TARGET_HOST)
