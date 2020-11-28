@@ -79,7 +79,7 @@ class MSNPCtrlNS(MSNPCtrl):
 		self.new_circles = []
 		self.initial_adl_sent = False
 		self.circle_adl_sent = False
-		# Remove this after initial launch period
+		# Remove this at some point
 		self.msidcrl_client = False
 	
 	def _on_close(self) -> None:
@@ -200,7 +200,8 @@ class MSNPCtrlNS(MSNPCtrl):
 				return
 		
 		if authtype == 'TWN':
-			if dialect >= 15 or dialect < 8:
+			# Supported since MSNP8 and had support all the way into `SSO`-capable protocols (MSNP15+; Messenger:mac 8.0.1 apparently has the ability to use this auth method on MSNP16)
+			if dialect < 8:
 				self.close()
 				return
 			if self.bs:
@@ -230,7 +231,7 @@ class MSNPCtrlNS(MSNPCtrl):
 				if token[0:2] == 't=':
 					token = token[2:22]
 				else:
-					# Remove this after initial launch period
+					# Remove this at some point
 					if dialect >= 12:
 						self.msidcrl_client = True
 				usr_email = self.usr_email
@@ -288,11 +289,11 @@ class MSNPCtrlNS(MSNPCtrl):
 					response = None
 					rps = False
 					
-					# TODO: After launch period, modify this chunk of code so RPS is made mandatory for authentication
+					# TODO: In the future, modify this chunk of code so RPS is made mandatory for authentication
 					if dialect >= 16 or (dialect < 16 and len(args) > 1):
 						rps = True
 					else:
-						# Remove this after initial launch period
+						# Remove this at some point
 						self.msidcrl_client = True
 					
 					if settings.DEBUG and settings.DEBUG_MSNP: print('RPS authentication:', rps)
@@ -460,6 +461,7 @@ class MSNPCtrlNS(MSNPCtrl):
 	
 	def _m_syn(self, trid: str, *extra: str) -> None:
 		bs = self.bs
+		backend = self.backend
 		dialect = self.dialect
 		
 		assert bs is not None
@@ -473,32 +475,12 @@ class MSNPCtrlNS(MSNPCtrl):
 		
 		self.syn_sent = True
 		
-		# <notice>
-		# Remove all this crap after initial launch period
-		#
-		if dialect >= 5:
-			if dialect >= 11:
-				msg1 = "This version of MSN Messenger allows you to receive offline messages, but if you haven't reinstalled your version with the latest patches to view them or want to upgrade to Windows Live Messenger 8 or above to also send them, then click on this toast."
-			else:
-				msg1 = "To send and receive offline messages, upgrade to Windows Live Messenger 8 or above."
-			
+		# Remove at some point
+		if self.msidcrl_client:
 			self.send_reply('NOT', encode_payload(PAYLOAD_MSG_10,
 				domain = 'https://escargot.log1p.xyz/', email = user.email, url = 'downloads/msn-messenger',
-				msg = msg1,
+				msg = DEPRECATION_MESSAGE,
 			))
-			
-			self.send_reply('NOT', encode_payload(PAYLOAD_MSG_10,
-				domain = 'https://escargot.log1p.xyz/', email = user.email, url = 'downloads/msn-messenger',
-				msg = "Escargot now supports Windows Live Messenger Groups. To get started, upgrade to Windows Live Messenger 2009.",
-			))
-			
-			if self.msidcrl_client:
-				self.send_reply('NOT', encode_payload(PAYLOAD_MSG_10,
-					domain = 'https://escargot.log1p.xyz/', email = user.email, url = 'downloads/msn-messenger',
-					msg = "We've detected that you're using an MSN Messenger client utilizing deprecated patching methods for login. To continue using MSN without future complications, we recommend downloading a version with the latest patches by clicking on this toast.",
-				))
-		#
-		# </notice>
 		
 		if dialect < 10:
 			self.syn_ser = int(extra[0])
@@ -815,21 +797,12 @@ class MSNPCtrlNS(MSNPCtrl):
 					self.send_reply('ADL', trid, 'OK')
 					if not self.initial_adl_sent:
 						self.initial_adl_sent = True
-					# <notice>
-					# Remove all this other crap after initial launch period
-					#
-					if self.dialect <= 15:
-						self.send_reply('NOT', encode_payload(PAYLOAD_MSG_10,
-							domain = 'https://escargot.log1p.xyz/', email = user.email, url = 'downloads/msn-messenger',
-							msg = "Escargot now supports Windows Live Messenger Groups. To get started, upgrade to Windows Live Messenger 2009.",
-						))
+					# Remove at some point
 					if self.msidcrl_client:
 						self.send_reply('NOT', encode_payload(PAYLOAD_MSG_10,
 							domain = 'https://escargot.log1p.xyz/', email = user.email, url = 'downloads/msn-messenger',
-							msg = "We've detected that you're using a Windows Live Messenger client utilizing deprecated patching methods for login. To continue using WLM without future complications, we recommend downloading a version with the latest patches by clicking on this toast.",
+							msg = DEPRECATION_MESSAGE,
 						))
-					#
-					# </notice>
 					return
 				
 				if circle_mode:
@@ -2598,6 +2571,8 @@ Content-Transfer-Encoding: 7bit\r\nMessage-Type: Text\r\nMIME-Version: 1.0\r\n\r
 		data.front_cache['msnp_sdg'] = pre.encode('utf-8') + r.encode('utf-8') + s.encode('utf-8')
 	
 	return data.front_cache['msnp_sdg']
+
+DEPRECATION_MESSAGE = "We've detected that you're using an MSN Messenger client utilizing deprecated patching methods for login. To continue using MSN without future complications, we recommend downloading a version with the latest patches by clicking on this toast."
 
 PAYLOAD_MSG_0 = '''Routing: 1.0
 To: 1:{email_address};epid={endpoint_ID}

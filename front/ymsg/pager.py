@@ -1133,7 +1133,7 @@ class YMSGCtrlPager(YMSGCtrlBase):
 		
 		return resp_6 == resp_6_server and resp_96 == resp_96_server
 	
-	def _refresh_cookies(self) -> Tuple[str, str, str, str]:
+	def _refresh_cookies(self) -> Optional[Tuple[str, str, str, str]]:
 		# Creates the cookies if they don't exist
 		
 		assert self.t_cookie_token is not None

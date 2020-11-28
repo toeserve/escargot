@@ -155,7 +155,7 @@ def build_presence_notif(
 			yield reply
 			return
 		
-	assert ctc_sess is not None
+	if ctc_sess is None: return
 	
 	if status.substatus is not old_substatus or update_status:
 		msn_status = MSNStatus.FromSubstatus(status.substatus)
